@@ -1,0 +1,11 @@
+{
+    "id": "friendsofbotble/fob-google-indexing",
+    "name": "FOB Google Indexing API",
+    "namespace": "FriendsOfBotble\\GoogleIndexing\\",
+    "provider": "FriendsOfBotble\\GoogleIndexing\\Providers\\GoogleIndexingServiceProvider",
+    "author": "Friends Of Botble",
+    "url": "https://friendsofbotble.com",
+    "version": "1.0.0",
+    "description": "Google Indexing API integration for faster content indexing in Google Search",
+    "minimum_core_version": "7.5.0"
+}

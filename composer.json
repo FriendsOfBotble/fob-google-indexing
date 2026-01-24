@@ -1,0 +1,8 @@
+{
+    "name": "friendsofbotble/fob-google-indexing",
+    "description": "Google Indexing API integration for job posting websites",
+    "type": "package",
+    "require": {
+        "google/apiclient": "^2.19"
+    }
+}
