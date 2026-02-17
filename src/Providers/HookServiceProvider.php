@@ -14,6 +14,13 @@ class HookServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Submit to Google when a job is created or updated (after slug is available)
+        add_action([BASE_ACTION_AFTER_CREATE_CONTENT, BASE_ACTION_AFTER_UPDATE_CONTENT], function ($screen, $request, $data): void {
+            if ($data instanceof Job) {
+                app(JobBoardIndexingListener::class)->handleJobPublishedOrUpdated($data);
+            }
+        }, 120, 3);
+
         // Hook into job expiration
         add_action('job_expired', function (Job $job): void {
             app(JobBoardIndexingListener::class)->handleJobExpired($job);

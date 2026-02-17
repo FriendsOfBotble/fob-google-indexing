@@ -57,19 +57,42 @@ class GoogleIndexingService
         return $this->enabled && $this->credentials !== null;
     }
 
-    public function submitUrl(string $url, string $type = 'URL_UPDATED'): array
+    public function submitUrl(string $url, string $type = 'URL_UPDATED', ?string $contentType = null, int|string|null $contentId = null): array
     {
         if (! $this->isEnabled()) {
             return ['status' => 'disabled', 'message' => 'Google Indexing API is disabled'];
         }
 
         if (! $this->isQuotaAvailable()) {
-            GoogleIndexingPending::queueUrl($url, $type);
+            GoogleIndexingPending::query()->create([
+                'url' => $url,
+                'type' => $type,
+                'content_type' => $contentType,
+                'content_id' => $contentId,
+                'status' => 'pending',
+                'scheduled_at' => now()->addDay()->startOfDay(),
+            ]);
 
             return ['status' => 'queued', 'message' => 'Quota exhausted, queued for tomorrow'];
         }
 
-        return $this->sendNotification($url, $type);
+        $record = GoogleIndexingPending::query()->create([
+            'url' => $url,
+            'type' => $type,
+            'content_type' => $contentType,
+            'content_id' => $contentId,
+            'status' => 'submitting',
+        ]);
+
+        $result = $this->sendNotification($url, $type);
+
+        $record->update([
+            'status' => $result['status'] === 'success' ? 'completed' : 'failed',
+            'submitted_at' => now(),
+            'last_error' => $result['status'] !== 'success' ? ($result['message'] ?? null) : null,
+        ]);
+
+        return $result;
     }
 
     public function deleteUrl(string $url): array
@@ -90,8 +113,6 @@ class GoogleIndexingService
                 ->withToken($token)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post($this->apiEndpoint, ['url' => $url, 'type' => $type]);
-
-            $this->incrementQuotaUsage();
 
             if ($response->successful()) {
                 Log::info('Google Indexing: URL submitted', ['url' => $url, 'type' => $type]);
@@ -180,8 +201,11 @@ class GoogleIndexingService
 
     public function getQuotaUsage(): array
     {
-        $today = now()->format('Y-m-d');
-        $used = (int) cache()->get("google_indexing_quota_{$today}", 0);
+        $today = now()->toDateString();
+        $used = GoogleIndexingPending::query()
+            ->whereDate('submitted_at', $today)
+            ->whereIn('status', ['completed', 'failed', 'submitting'])
+            ->count();
 
         return [
             'date' => $today,
@@ -189,14 +213,6 @@ class GoogleIndexingService
             'limit' => $this->dailyQuota,
             'remaining' => max(0, $this->dailyQuota - $used),
         ];
-    }
-
-    protected function incrementQuotaUsage(): void
-    {
-        $today = now()->format('Y-m-d');
-        $key = "google_indexing_quota_{$today}";
-        $current = (int) cache()->get($key, 0);
-        cache()->put($key, $current + 1, now()->endOfDay());
     }
 
     public function isQuotaAvailable(): bool
@@ -272,15 +288,19 @@ class GoogleIndexingService
             $result = $this->sendNotification($item->url, $item->type);
 
             if ($result['status'] === 'success') {
-                $item->update(['status' => 'completed']);
+                $item->update(['status' => 'completed', 'submitted_at' => now()]);
                 $processed++;
             } else {
                 $item->increment('attempts');
 
+                $updateData = ['submitted_at' => now()];
+
                 if ($item->attempts >= 3) {
-                    $item->update(['status' => 'failed', 'last_error' => $result['message']]);
+                    $updateData['status'] = 'failed';
+                    $updateData['last_error'] = $result['message'];
                 }
 
+                $item->update($updateData);
                 $failed++;
             }
         }

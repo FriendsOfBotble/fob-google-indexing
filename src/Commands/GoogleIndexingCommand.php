@@ -71,7 +71,7 @@ class GoogleIndexingCommand extends Command
         $pending = GoogleIndexingPending::pending()->count();
         $failed = GoogleIndexingPending::failed()->count();
         $completedToday = GoogleIndexingPending::completed()
-            ->whereDate('updated_at', today())
+            ->whereDate('submitted_at', today())
             ->count();
 
         $this->newLine();

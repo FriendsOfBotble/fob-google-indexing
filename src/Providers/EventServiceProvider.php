@@ -2,6 +2,7 @@
 
 namespace FriendsOfBotble\GoogleIndexing\Providers;
 
+use Botble\JobBoard\Events\JobPublishedEvent;
 use Botble\JobBoard\Models\Job;
 use FriendsOfBotble\GoogleIndexing\Events\ContentIndexingEvent;
 use FriendsOfBotble\GoogleIndexing\Jobs\GoogleIndexingJob;
@@ -25,18 +26,18 @@ class EventServiceProvider extends ServiceProvider
             }
         });
 
-        // Job Board model observers
-        if (class_exists(Job::class)) {
-            $this->registerJobBoardObservers();
+        // Listen to JobPublishedEvent for admin approval flow
+        if (class_exists(JobPublishedEvent::class)) {
+            $this->app['events']->listen(JobPublishedEvent::class, function (JobPublishedEvent $event) {
+                if ($event->job->getKey()) {
+                    app(JobBoardIndexingListener::class)->handleJobPublishedOrUpdated($event->job);
+                }
+            });
         }
-    }
 
-    protected function registerJobBoardObservers(): void
-    {
-        $listener = app(JobBoardIndexingListener::class);
-
-        Job::created(fn (Job $job) => $listener->handleJobCreated($job));
-        Job::updated(fn (Job $job) => $listener->handleJobUpdated($job));
-        Job::deleting(fn (Job $job) => $listener->handleJobDeleted($job));
+        // Job Board model observers (deletion only)
+        if (class_exists(Job::class)) {
+            Job::deleting(fn (Job $job) => app(JobBoardIndexingListener::class)->handleJobDeleted($job));
+        }
     }
 }

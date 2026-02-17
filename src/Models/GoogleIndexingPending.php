@@ -18,12 +18,14 @@ class GoogleIndexingPending extends BaseModel
         'attempts',
         'last_error',
         'scheduled_at',
+        'submitted_at',
     ];
 
     protected function casts(): array
     {
         return [
             'scheduled_at' => 'datetime',
+            'submitted_at' => 'datetime',
         ];
     }
 
@@ -49,13 +51,12 @@ class GoogleIndexingPending extends BaseModel
         ?string $contentType = null,
         int|string|null $contentId = null
     ): self {
-        return static::updateOrCreate(
-            ['url' => $url],
+        return static::firstOrCreate(
+            ['url' => $url, 'status' => 'pending'],
             [
                 'type' => $type,
                 'content_type' => $contentType,
                 'content_id' => $contentId,
-                'status' => 'pending',
                 'scheduled_at' => now(),
             ]
         );

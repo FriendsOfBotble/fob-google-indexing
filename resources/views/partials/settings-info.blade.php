@@ -3,7 +3,7 @@
     $pending = \FriendsOfBotble\GoogleIndexing\Models\GoogleIndexingPending::pending()->count();
     $failed = \FriendsOfBotble\GoogleIndexing\Models\GoogleIndexingPending::failed()->count();
     $completedToday = \FriendsOfBotble\GoogleIndexing\Models\GoogleIndexingPending::completed()
-        ->whereDate('updated_at', today())
+        ->whereDate('submitted_at', today())
         ->count();
     $clientEmail = null;
     $projectId = null;

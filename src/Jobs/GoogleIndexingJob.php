@@ -37,7 +37,7 @@ class GoogleIndexingJob implements ShouldQueue
             return;
         }
 
-        $result = $service->submitUrl($this->url, $this->type);
+        $result = $service->submitUrl($this->url, $this->type, $this->contentType, $this->contentId);
 
         if ($result['status'] === 'error' && isset($result['status_code']) && $result['status_code'] === 429) {
             throw new Exception('Quota exceeded, will retry');
